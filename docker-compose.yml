@@ -1,0 +1,78 @@
+# نسخه Docker Compose (معمولا 3.8 یا بالاتر برای امکانات جدیدتر)
+
+
+# تعریف سرویس‌های مختلف برنامه
+services:
+  # سرویس پایگاه داده PostgreSQL
+  db:
+    # از ایمیج رسمی PostgreSQL استفاده می‌کند (نسخه 13 یک نسخه پایدار و متداول است)
+    image: postgres:13
+    # نام‌گذاری کانتینر برای دسترسی آسان‌تر (اختیاری، docker-compose خودش نام میسازد)
+    # container_name: asefi-prj-db-1
+    # متغیرهای محیطی برای پیکربندی اولیه PostgreSQL
+    environment:
+      # نام پایگاه داده‌ای که ایجاد می‌شود (باید با NAME در settings.py یکی باشد)
+      POSTGRES_DB: your_db_name_here
+      # نام کاربری پایگاه داده (باید با USER در settings.py یکی باشد)
+      POSTGRES_USER: your_db_user_here
+      # رمز عبور پایگاه داده (باید با PASSWORD در settings.py یکی باشد)
+      POSTGRES_PASSWORD: your_db_password_here
+    # Volume برای ذخیره پایدار داده‌های پایگاه داده
+    volumes:
+      # داده‌ها در volume با نام 'pg_data' روی سیستم شما ذخیره می‌شوند
+      - pg_data:/var/lib/postgresql/data
+    # مپ کردن پورت 5432 کانتینر به پورت 5432 روی سیستم شما (اختیاری، برای دسترسی با pgAdmin و...)
+    ports:
+      - "5432:5432"
+    # بازراه‌اندازی کانتینر در صورت توقف غیرعادی
+    restart: always
+
+  # سرویس برنامه وب Django با Gunicorn
+  web:
+    # ایمیج کانتینر را از روی Dockerfile در همین دایرکتوری میسازد
+    build: .
+    # نام‌گذاری کانتینر (اختیاری)
+    # container_name: asefi-prj-web-1
+    # مپ کردن پورت 8000 کانتینر (که Gunicorn روی آن گوش می‌دهد) به پورت 8000 روی سیستم شما
+    ports:
+      - "8000:8000"
+    # مپ کردن کدهای پروژه روی سیستم شما به دایرکتوری کاری داخل کانتینر
+    # این برای راحتی توسعه است تا با تغییر کدها نیاز به بازسازی ایمیج نباشد
+    volumes:
+      - .:/app
+    # اعلام وابستگی به سرویس db. این باعث می‌شود سرویس db قبل از web راه‌اندازی شود.
+    depends_on:
+      - db
+    # متغیرهای محیطی که داخل کانتینر web در دسترس خواهند بود (برای settings.py جنگو)
+    environment:
+      # این مقادیر باید در settings.py خوانده شده و در تنظیمات DATABASES استفاده شوند
+      DATABASE_NAME: your_db_name_here
+      DATABASE_USER: your_db_user_here
+      DATABASE_PASSWORD: your_db_password_here
+      # آدرس هاست دیتابیس: نام سرویس دیتابیس در docker-compose.yml
+      DATABASE_HOST: db
+      # پورت دیتابیس: پورت استاندارد PostgreSQL
+      DATABASE_PORT: 5432
+      # کلید مخفی جنگو (مقدار واقعی و امن را جایگزین کنید!)
+      SECRET_KEY: your_django_secret_key_here
+      # تنظیمات DEBUG (در Production باید False باشد، در توسعه True)
+      DEBUG: "True"
+      # هاست‌های مجاز (در Production باید دامنه یا IP سرور ابری شما باشد)
+      ALLOWED_HOSTS: "*" # برای توسعه محلی میتوانید "*" بگذارید
+    # دستوری که هنگام راه‌اندازی کانتینر اجرا می‌شود (Gunicorn را اجرا می‌کند)
+    # این دستور CMD در Dockerfile را نادیده میگیرد
+    command: gunicorn --bind 0.0.0.0:8000 your_project_name.wsgi:'learning_logs' 
+    # بازراه‌اندازی کانتینر در صورت توقف غیرعادی
+    restart: always
+
+# تعریف Volumeهای مورد استفاده (برای ذخیره پایدار داده‌های دیتابیس)
+volumes:
+  pg_data:
+
+# تعریف شبکه پیش‌فرض (Docker Compose به صورت خودکار یک شبکه ایجاد میکند مگر اینکه شبکه خاصی تعریف کنید)
+# networks:
+#   default:
+#     driver: bridge
+
+
+
